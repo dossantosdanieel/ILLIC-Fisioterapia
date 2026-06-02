@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { CheckCircle2, Circle, Clock, AlertTriangle, ChevronRight } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, AlertTriangle, ChevronRight, Pencil } from 'lucide-react'
 import { buscarPlanoCompleto } from '../api'
 import { calcularSemanaAtual, calcularMicrocicloAtual, dataReavaliacao, formatarData, formatarDataCurta } from '../utils'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardBody, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { SessoesDoPlanoPainel } from '@/features/sessoes/components/SessoesDoPlanoPainel'
+import { EditarFaseModal } from './EditarFaseModal'
 import type { FaseCompleta } from '@/types/queries'
 
 type TabPlano = 'fases' | 'sessoes'
@@ -16,6 +17,7 @@ interface Props { planoId: string; pacienteId: string }
 
 export function PainelPlano({ planoId, pacienteId }: Props) {
   const [tab, setTab] = useState<TabPlano>('fases')
+  const [faseEditando, setFaseEditando] = useState<FaseCompleta | null>(null)
   const { data: plano, isLoading } = useQuery({
     queryKey: ['plano', planoId],
     queryFn: () => buscarPlanoCompleto(planoId),
@@ -178,12 +180,22 @@ export function PainelPlano({ planoId, pacienteId }: Props) {
                     )}
                   </div>
 
-                  <Link
-                    to={`/pacientes/${pacienteId}/plano/${planoId}/fase/${fase.id}`}
-                    className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <ChevronRight size={16} />
-                  </Link>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setFaseEditando(fase)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors rounded-md hover:bg-blue-50"
+                      title="Editar fase"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <Link
+                      to={`/pacientes/${pacienteId}/plano/${planoId}/fase/${fase.id}`}
+                      className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors"
+                      title="Ver sessões da fase"
+                    >
+                      <ChevronRight size={16} />
+                    </Link>
+                  </div>
                 </div>
               </div>
             )
@@ -201,6 +213,16 @@ export function PainelPlano({ planoId, pacienteId }: Props) {
           Registrar reavaliação
         </Link>
       </div>
+
+      {/* Modal de edição de fase */}
+      {faseEditando && (
+        <EditarFaseModal
+          open={!!faseEditando}
+          onClose={() => setFaseEditando(null)}
+          fase={faseEditando}
+          planoId={planoId}
+        />
+      )}
     </div>
   )
 }

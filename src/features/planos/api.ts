@@ -116,13 +116,11 @@ export async function atualizarStatusPlano(
   if (error) throw error
 }
 
-// ── Fases — atualização de objetivos ──────────────────────
+// ── Fases — atualização ────────────────────────────────────
 
 export async function atualizarObjetivosFase(faseId: string, objetivos: string[]) {
   const { error } = await supabase
-    .from('fase')
-    .update({ objetivos })
-    .eq('id', faseId)
+    .from('fase').update({ objetivos }).eq('id', faseId)
   if (error) throw error
 }
 
@@ -133,9 +131,37 @@ export async function atualizarFase(faseId: string, patch: {
   objetivos?: string[]
 }) {
   const { error } = await supabase
-    .from('fase')
-    .update(patch)
-    .eq('id', faseId)
+    .from('fase').update(patch).eq('id', faseId)
+  if (error) throw error
+}
+
+// ── Critérios — CRUD individual ────────────────────────────
+
+export async function criarCriterio(
+  faseId: string,
+  criterio: { medida_id: string; operador: OperadorCriterio; valor_alvo: number },
+) {
+  const { data, error } = await supabase
+    .from('criterio_fase')
+    .insert({ fase_id: faseId, ...criterio })
+    .select()
+    .single()
+  if (error) throw error
+  return data!
+}
+
+export async function atualizarCriterio(
+  criterioId: string,
+  patch: { medida_id?: string; operador?: OperadorCriterio; valor_alvo?: number },
+) {
+  const { error } = await supabase
+    .from('criterio_fase').update(patch).eq('id', criterioId)
+  if (error) throw error
+}
+
+export async function removerCriterio(criterioId: string) {
+  const { error } = await supabase
+    .from('criterio_fase').delete().eq('id', criterioId)
   if (error) throw error
 }
 
