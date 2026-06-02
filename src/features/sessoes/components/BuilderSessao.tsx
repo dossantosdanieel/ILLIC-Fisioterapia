@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Video, Search } from 'lucide-react'
 import {
-  buscarOuCriarTemplate, listarExercicios,
+  buscarOuCriarTemplate, listarExercicios, criarExercicio,
   criarBloco, removerBloco,
   adicionarExercicio, atualizarExercicioPrescrito, removerExercicioPrescrito,
 } from '../api'
@@ -361,53 +361,179 @@ function ExercicioCard({ ep, editando, onEdit, onRemove, onSave }: ExercicioCard
   )
 }
 
-// ── Seletor de exercício ───────────────────────────────────
+// ── Seletor de exercício com criação inline ────────────────
 
 function SeletorExercicio({
   open, onClose, onSelect,
 }: { open: boolean; onClose: () => void; onSelect: (id: string) => void }) {
+  const qc = useQueryClient()
   const [busca, setBusca] = useState('')
+  const [criando, setCriando] = useState(false)
+  const [novoForm, setNovoForm] = useState({ nome: '', grupo_muscular: '', descricao: '', video_url: '' })
+  const [salvando, setSalvando] = useState(false)
+  const [erroNovo, setErroNovo] = useState<string | null>(null)
 
   const { data: exercicios } = useQuery({
     queryKey: ['exercicios', busca],
     queryFn: () => listarExercicios(busca),
   })
 
+  async function handleCriarESeleionar() {
+    if (!novoForm.nome.trim()) { setErroNovo('Nome obrigatório.'); return }
+    setErroNovo(null)
+    setSalvando(true)
+    try {
+      const novo = await criarExercicio({
+        nome: novoForm.nome.trim(),
+        grupo_muscular: novoForm.grupo_muscular.trim() || null,
+        descricao: novoForm.descricao.trim() || null,
+        video_url: novoForm.video_url.trim() || null,
+      })
+      qc.invalidateQueries({ queryKey: ['exercicios'] })
+      onSelect(novo.id)
+      setCriando(false)
+      setNovoForm({ nome: '', grupo_muscular: '', descricao: '', video_url: '' })
+    } catch {
+      setErroNovo('Erro ao cadastrar exercício.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
   return (
     <Modal open={open} onClose={onClose} title="Selecionar exercício" size="md">
       <div className="space-y-3">
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar exercício…"
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
-            autoFocus
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
 
-        <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
-          {(exercicios ?? []).map(ex => (
-            <button
-              key={ex.id}
-              onClick={() => onSelect(ex.id)}
-              className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-blue-50 transition-colors text-left"
-            >
-              <div>
-                <p className="text-sm font-medium text-gray-800">{ex.nome}</p>
-                {ex.grupo_muscular && (
-                  <p className="text-xs text-gray-400">{ex.grupo_muscular}</p>
-                )}
+        {/* Busca */}
+        {!criando && (
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar exercício…"
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              autoFocus
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
+
+        {/* Lista de exercícios */}
+        {!criando && (
+          <div className="divide-y divide-gray-100 max-h-72 overflow-y-auto rounded-md border border-gray-100">
+            {(exercicios ?? []).map(ex => (
+              <button
+                key={ex.id}
+                onClick={() => onSelect(ex.id)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-blue-50 transition-colors text-left"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{ex.nome}</p>
+                  {ex.grupo_muscular && (
+                    <p className="text-xs text-gray-400">{ex.grupo_muscular}</p>
+                  )}
+                </div>
+                {ex.video_url && <Video size={12} className="text-gray-300 shrink-0" />}
+              </button>
+            ))}
+            {exercicios?.length === 0 && (
+              <div className="py-6 text-center">
+                <p className="text-sm text-gray-400">Nenhum exercício encontrado</p>
+                <p className="text-xs text-gray-400 mt-1">Cadastre um novo abaixo ↓</p>
               </div>
-              {ex.video_url && <Video size={12} className="text-gray-300 mt-0.5 shrink-0" />}
-            </button>
-          ))}
-          {exercicios?.length === 0 && (
-            <p className="py-6 text-center text-sm text-gray-400">Nenhum exercício encontrado</p>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+
+        {/* Botão / formulário de criação inline */}
+        {!criando ? (
+          <button
+            onClick={() => { setCriando(true); setBusca('') }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-blue-600 border border-dashed border-blue-300 rounded-md hover:bg-blue-50 transition-colors"
+          >
+            <Plus size={15} />
+            Cadastrar novo exercício
+          </button>
+        ) : (
+          <div className="space-y-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-blue-800">Novo exercício</p>
+              <button
+                onClick={() => { setCriando(false); setErroNovo(null) }}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                ← Voltar para busca
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Nome *</label>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Ex: Rotação externa com haltere"
+                  value={novoForm.nome}
+                  onChange={e => setNovoForm(f => ({ ...f, nome: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && handleCriarESeleionar()}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Grupo muscular</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Rotadores de ombro"
+                  value={novoForm.grupo_muscular}
+                  onChange={e => setNovoForm(f => ({ ...f, grupo_muscular: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Descrição / instrução</label>
+                <input
+                  type="text"
+                  placeholder="Breve descrição da execução"
+                  value={novoForm.descricao}
+                  onChange={e => setNovoForm(f => ({ ...f, descricao: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">URL do vídeo (opcional)</label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={novoForm.video_url}
+                  onChange={e => setNovoForm(f => ({ ...f, video_url: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+            </div>
+
+            {erroNovo && <p className="text-xs text-red-600">{erroNovo}</p>}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleCriarESeleionar}
+                disabled={salvando || !novoForm.nome.trim()}
+                className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {salvando ? 'Cadastrando…' : 'Cadastrar e adicionar'}
+              </button>
+              <button
+                onClick={() => { setCriando(false); setErroNovo(null) }}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   )

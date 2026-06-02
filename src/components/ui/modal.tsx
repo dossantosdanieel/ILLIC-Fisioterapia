@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
@@ -18,36 +19,57 @@ const sizes = {
 }
 
 export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-
+  // Bloqueia scroll do body enquanto o modal está aberto
   useEffect(() => {
-    const el = dialogRef.current
-    if (!el) return
-    if (open) el.showModal()
-    else el.close()
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
   }, [open])
 
-  return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      className={cn(
-        'w-full rounded-lg border border-gray-200 shadow-xl p-0',
-        'backdrop:bg-black/40',
-        'open:flex open:flex-col',
+  // Fecha com Escape
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+      />
+
+      {/* Painel central */}
+      <div className={cn(
+        'relative bg-white rounded-lg border border-gray-200 shadow-xl w-full flex flex-col',
+        'max-h-[90vh]',
         sizes[size],
-      )}
-      onClick={e => { if (e.target === dialogRef.current) onClose() }}
-    >
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-          <X size={16} />
-        </button>
+      )}>
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
+          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Conteúdo rolável */}
+        <div className="px-5 py-4 overflow-y-auto flex-1">
+          {children}
+        </div>
       </div>
-      <div className="px-5 py-4 overflow-y-auto max-h-[80vh]">
-        {children}
-      </div>
-    </dialog>
+    </div>,
+    document.body,
   )
 }
