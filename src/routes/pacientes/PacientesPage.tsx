@@ -3,23 +3,34 @@ import { Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { ListaPacientes } from '@/features/pacientes/components/ListaPacientes'
 import { Card } from '@/components/ui/card'
+import { useAuth } from '@/lib/AuthContext'
 
 export default function PacientesPage() {
+  const { profissional } = useAuth()
   const [busca, setBusca] = useState('')
+
+  const podeAdicionarPaciente =
+    profissional?.papel === 'coordenador' || profissional?.papel === 'admin'
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">Pacientes</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Gerencie seus pacientes e planos de tratamento</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {podeAdicionarPaciente
+              ? 'Cadastre e designe pacientes para os fisioterapeutas'
+              : 'Seus pacientes designados pela clínica'}
+          </p>
         </div>
-        <Link
-          to="/pacientes/novo"
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={16} /> Novo paciente
-        </Link>
+        {podeAdicionarPaciente && (
+          <Link
+            to="/pacientes/novo"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={16} /> Novo paciente
+          </Link>
+        )}
       </div>
 
       <div className="mb-4 relative">

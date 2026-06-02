@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { formatarData } from '@/features/planos/utils'
 import { useState } from 'react'
+import { useAuth } from '@/lib/AuthContext'
 import type { PacienteDetalhe } from '@/types/queries'
 
 type Tab = 'plano' | 'sessoes' | 'avaliacoes'
@@ -20,6 +21,7 @@ type Tab = 'plano' | 'sessoes' | 'avaliacoes'
 export default function PacienteDetalhePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { profissional } = useAuth()
   const [tab, setTab] = useState<Tab>('plano')
 
   const { data: pacienteRaw, isLoading } = useQuery({
@@ -38,6 +40,8 @@ export default function PacienteDetalhePage() {
 
   const p = pacienteRaw as PacienteDetalhe
   const planoAtivo = planos?.find(pl => pl.status === 'ativo') ?? planos?.[0]
+  const podeGerenciarPlano =
+    profissional?.papel === 'coordenador' || profissional?.papel === 'admin'
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'plano', label: 'Plano de tratamento' },
@@ -79,7 +83,7 @@ export default function PacienteDetalhePage() {
             onClick={() => navigate(`/pacientes/${id}/avaliacoes/nova${planoAtivo ? `?plano=${planoAtivo.id}` : ''}`)}>
             <Plus size={14} /> Avaliação
           </Button>
-          {!planoAtivo && (
+          {!planoAtivo && podeGerenciarPlano && (
             <Button size="sm" onClick={() => navigate(`/pacientes/${id}/plano/novo`)}>
               <Plus size={14} /> Criar plano
             </Button>
@@ -109,9 +113,16 @@ export default function PacienteDetalhePage() {
             <Card><CardBody>
               <div className="flex flex-col items-center py-10 text-center">
                 <p className="text-sm text-gray-500 mb-3">Nenhum plano de tratamento ativo</p>
-                <Button onClick={() => navigate(`/pacientes/${id}/plano/novo`)}>
-                  <Plus size={14} /> Criar plano de tratamento
-                </Button>
+                {podeGerenciarPlano && (
+                  <Button onClick={() => navigate(`/pacientes/${id}/plano/novo`)}>
+                    <Plus size={14} /> Criar plano de tratamento
+                  </Button>
+                )}
+                {!podeGerenciarPlano && (
+                  <p className="text-xs text-gray-400">
+                    Aguardando o coordenador ou admin criar o plano.
+                  </p>
+                )}
               </div>
             </CardBody></Card>
           )

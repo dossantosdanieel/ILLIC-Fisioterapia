@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/AuthContext'
 import { criarPaciente } from '../api'
+import { listarProfissionais } from '@/features/coordenacao/api'
 
 const PRIORIDADES = [
   { value: 'alta', label: 'Alta' },
@@ -19,15 +21,26 @@ export function FormPaciente() {
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
+  // Busca fisioterapeutas para o seletor de designação
+  const { data: profissionais } = useQuery({
+    queryKey: ['profissionais'],
+    queryFn: listarProfissionais,
+  })
+  const fisios = (profissionais ?? []).filter(p => p.papel === 'fisioterapeuta')
+  const fisiosOpts = fisios.map(f => ({ value: f.id, label: f.nome }))
+
   const [form, setForm] = useState({
     nome: '',
     data_nascimento: '',
     diagnostico: '',
-    hipotese_diagnostica: '',
     prioridade: 'moderada',
     convenio_plano: '',
+    fisio_responsavel_id: fisios[0]?.id ?? '',
     consentimento_lgpd: false,
   })
+
+  // Sincroniza o primeiro fisio quando a query carrega
+  const fisioId = form.fisio_responsavel_id || fisios[0]?.id || ''
 
   function set(field: string, value: string | boolean) {
     setForm(f => ({ ...f, [field]: value }))
@@ -36,6 +49,10 @@ export function FormPaciente() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!profissional) return
+    if (!fisioId) {
+      setErro('Selecione o fisioterapeuta responsável.')
+      return
+    }
     if (!form.consentimento_lgpd) {
       setErro('É necessário registrar o consentimento LGPD antes de cadastrar.')
       return
@@ -47,10 +64,10 @@ export function FormPaciente() {
         nome: form.nome,
         data_nascimento: form.data_nascimento || null,
         diagnostico: form.diagnostico || null,
-        hipotese_diagnostica: form.hipotese_diagnostica || null,
+        hipotese_diagnostica: null,
         prioridade: form.prioridade as 'alta' | 'moderada' | 'baixa',
         convenio_plano: form.convenio_plano || null,
-        fisio_responsavel_id: profissional.id,
+        fisio_responsavel_id: fisioId,
         consentimento_lgpd: true,
         data_consentimento: new Date().toISOString(),
         ativo: true,
@@ -65,6 +82,7 @@ export function FormPaciente() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
+
       <Input
         label="Nome completo *"
         required
@@ -103,6 +121,23 @@ export function FormPaciente() {
         placeholder="Ex: Unimed, Particular…"
       />
 
+      {/* Seletor de fisioterapeuta responsável */}
+      <div>
+        <Select
+          label="Fisioterapeuta responsável *"
+          options={fisiosOpts}
+          value={fisioId}
+          onChange={e => set('fisio_responsavel_id', e.target.value)}
+          placeholder={fisios.length === 0 ? 'Nenhum fisioterapeuta cadastrado' : 'Selecione…'}
+        />
+        {fisios.length === 0 && (
+          <p className="text-xs text-amber-600 mt-1">
+            Nenhum fisioterapeuta ativo encontrado. Cadastre profissionais antes de adicionar pacientes.
+          </p>
+        )}
+      </div>
+
+      {/* Consentimento LGPD */}
       <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
         <input
           type="checkbox"
@@ -118,10 +153,16 @@ export function FormPaciente() {
         </label>
       </div>
 
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {erro && (
+        <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-700">{erro}</p>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={loading}>Cadastrar paciente</Button>
+        <Button type="submit" loading={loading} disabled={fisios.length === 0}>
+          Cadastrar paciente
+        </Button>
         <Button type="button" variant="secondary" onClick={() => navigate('/pacientes')}>
           Cancelar
         </Button>
