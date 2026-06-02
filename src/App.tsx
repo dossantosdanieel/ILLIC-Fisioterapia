@@ -25,6 +25,9 @@ import CheckInPage from '@/routes/pacientes/CheckInPage'
 import CoordenacaoPage from '@/routes/coordenacao/CoordenacaoPage'
 import PacienteCoordenacaoPage from '@/routes/coordenacao/PacienteCoordenacaoPage'
 
+// Fase 4
+import PerformancePage from '@/routes/performance/PerformancePage'
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 2, retry: 1 } },
 })
@@ -76,7 +79,7 @@ export default function App() {
               {/* ── Placeholders ── */}
               <Route path="avaliacoes" element={<Navigate to="/pacientes" replace />} />
               <Route path="performance" element={
-                <ProtectedRoute minPapel="coordenador"><Placeholder titulo="Performance — Fase 4" /></ProtectedRoute>
+                <ProtectedRoute minPapel="coordenador"><PerformancePage /></ProtectedRoute>
               } />
               <Route path="admin" element={
                 <ProtectedRoute minPapel="admin"><Placeholder titulo="Administração" /></ProtectedRoute>

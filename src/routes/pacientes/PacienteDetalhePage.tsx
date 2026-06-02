@@ -6,6 +6,7 @@ import { listarPlanosDoPaciente } from '@/features/planos/api'
 import { PainelPlano } from '@/features/planos/components/PainelPlano'
 import { HistoricoAvaliacoes } from '@/features/avaliacoes/components/HistoricoAvaliacoes'
 import { HistoricoSessoes } from '@/features/sessoes/components/HistoricoSessoes'
+import { BotaoGerarPDF } from '@/features/performance/components/GerarPDF'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardBody } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
@@ -87,7 +88,7 @@ export default function PacienteDetalhePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-5">
+      <div className="flex items-center border-b border-gray-200 mb-5">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
@@ -96,6 +97,9 @@ export default function PacienteDetalhePage() {
             {t.label}
           </button>
         ))}
+        <div className="ml-auto pr-0.5">
+          <BotaoGerarPDF pacienteId={id!} pacienteNome={p.nome} />
+        </div>
       </div>
 
       {tab === 'plano' && (

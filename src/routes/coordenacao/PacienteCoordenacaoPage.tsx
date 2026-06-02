@@ -9,6 +9,7 @@ import { NotasReuniao } from '@/features/coordenacao/components/NotasReuniao'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
+import { BotaoGerarPDF } from '@/features/performance/components/GerarPDF'
 import { Button } from '@/components/ui/button'
 import { formatarData } from '@/features/planos/utils'
 import { useState } from 'react'
@@ -63,6 +64,7 @@ export default function PacienteCoordenacaoPage() {
           </div>
           {p.diagnostico && <p className="text-sm text-gray-600 mt-1.5">{p.diagnostico}</p>}
         </div>
+        <BotaoGerarPDF pacienteId={id!} pacienteNome={p.nome} />
         <Button variant="secondary" size="sm"
           onClick={() => navigate(`/pacientes/${id}/avaliacoes/nova${planoAtivo ? `?plano=${planoAtivo.id}` : ''}`)}>
           <Plus size={14} /> Avaliação
