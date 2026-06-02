@@ -4,7 +4,7 @@ import { ChevronLeft, Plus, Calendar, User } from 'lucide-react'
 import { buscarPaciente, prioridadeBadge, prioridadeLabel } from '@/features/pacientes/api'
 import { listarPlanosDoPaciente } from '@/features/planos/api'
 import { PainelPlano } from '@/features/planos/components/PainelPlano'
-import { LinhaDoTempo } from '@/features/planos/components/LinhaDoTempo'
+import { LinhaDoTempoGantt } from '@/features/planos/components/LinhaDoTempoGantt'
 import { HistoricoAvaliacoes } from '@/features/avaliacoes/components/HistoricoAvaliacoes'
 import { HistoricoSessoes } from '@/features/sessoes/components/HistoricoSessoes'
 import { BotaoGerarPDF } from '@/features/performance/components/GerarPDF'
@@ -101,7 +101,7 @@ export default function PacienteDetalhePage() {
               <p className="text-xs text-gray-400 mt-0.5">Clique em uma fase para ver e editar os objetivos</p>
             </div>
           </div>
-          <LinhaDoTempo planoId={planoAtivo.id} />
+          <LinhaDoTempoGantt planoId={planoAtivo.id} />
         </div>
       )}
 
