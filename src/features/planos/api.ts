@@ -116,6 +116,29 @@ export async function atualizarStatusPlano(
   if (error) throw error
 }
 
+// ── Fases — atualização de objetivos ──────────────────────
+
+export async function atualizarObjetivosFase(faseId: string, objetivos: string[]) {
+  const { error } = await supabase
+    .from('fase')
+    .update({ objetivos })
+    .eq('id', faseId)
+  if (error) throw error
+}
+
+export async function atualizarFase(faseId: string, patch: {
+  nome?: string
+  semana_inicio?: number
+  semana_fim?: number
+  objetivos?: string[]
+}) {
+  const { error } = await supabase
+    .from('fase')
+    .update(patch)
+    .eq('id', faseId)
+  if (error) throw error
+}
+
 // ── Medidas ────────────────────────────────────────────────
 
 export async function listarMedidas() {

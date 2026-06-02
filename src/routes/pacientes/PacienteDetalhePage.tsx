@@ -4,6 +4,7 @@ import { ChevronLeft, Plus, Calendar, User } from 'lucide-react'
 import { buscarPaciente, prioridadeBadge, prioridadeLabel } from '@/features/pacientes/api'
 import { listarPlanosDoPaciente } from '@/features/planos/api'
 import { PainelPlano } from '@/features/planos/components/PainelPlano'
+import { LinhaDoTempo } from '@/features/planos/components/LinhaDoTempo'
 import { HistoricoAvaliacoes } from '@/features/avaliacoes/components/HistoricoAvaliacoes'
 import { HistoricoSessoes } from '@/features/sessoes/components/HistoricoSessoes'
 import { BotaoGerarPDF } from '@/features/performance/components/GerarPDF'
@@ -90,6 +91,19 @@ export default function PacienteDetalhePage() {
           )}
         </div>
       </div>
+
+      {/* Linha do tempo — sempre visível quando há plano */}
+      {planoAtivo && (
+        <div className="mb-6 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Linha do tempo</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Clique em uma fase para ver e editar os objetivos</p>
+            </div>
+          </div>
+          <LinhaDoTempo planoId={planoAtivo.id} />
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center border-b border-gray-200 mb-5">
