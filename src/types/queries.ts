@@ -60,6 +60,8 @@ export interface ValorMedidaComMedida {
 }
 
 // ── Avaliação com joins ────────────────────────────────────
+export interface CampoAdicional { nome: string; valor: string; unidade: string }
+
 export interface AvaliacaoCompleta extends AvaliacaoRow {
   profissional: Pick<ProfissionalRow, 'nome'> | null
   valor_medida: ValorMedidaComMedida[]

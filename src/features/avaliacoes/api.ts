@@ -28,7 +28,7 @@ export async function buscarAvaliacao(id: string): Promise<AvaliacaoCompleta> {
 }
 
 export interface RegistrarAvaliacaoPayload {
-  avaliacao: AvaliacaoInsert
+  avaliacao: AvaliacaoInsert & { observacoes?: string | null; campos_adicionais?: { nome: string; valor: string; unidade: string }[] }
   valores: { medida_id: string; valor: number }[]
 }
 

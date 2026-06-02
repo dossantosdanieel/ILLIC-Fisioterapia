@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/lib/AuthContext'
@@ -34,7 +33,7 @@ export function FormPlano({ pacienteId }: Props) {
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
-  const { data: medidas } = useQuery({
+  const { data: medidas, isLoading: loadingMedidas } = useQuery({
     queryKey: ['medidas'],
     queryFn: listarMedidas,
   })
@@ -62,54 +61,74 @@ export function FormPlano({ pacienteId }: Props) {
     },
   ])
 
+  // ── Fases ─────────────────────────────────────────────────
+
   function addFase() {
-    const ultima = fases[fases.length - 1]
-    setFases(f => [...f, {
-      nome: `Fase ${f.length + 1}`,
-      semana_inicio: ultima ? ultima.semana_fim + 1 : 1,
-      semana_fim: ultima ? ultima.semana_fim + 4 : 4,
-      objetivos: '',
-      criterios: [],
-      expanded: true,
-    }])
+    // Usa prev para sempre ler o estado mais recente
+    setFases(prev => {
+      const ultima = prev[prev.length - 1]
+      return [...prev, {
+        nome: `Fase ${prev.length + 1}`,
+        semana_inicio: ultima ? ultima.semana_fim + 1 : 1,
+        semana_fim: ultima ? ultima.semana_fim + 4 : 4,
+        objetivos: '',
+        criterios: [],
+        expanded: true,
+      }]
+    })
   }
 
   function removeFase(i: number) {
-    setFases(f => f.filter((_, idx) => idx !== i))
+    setFases(prev => prev.filter((_, idx) => idx !== i))
   }
 
   function updateFase(i: number, patch: Partial<FaseForm>) {
-    setFases(f => f.map((fase, idx) => idx === i ? { ...fase, ...patch } : fase))
+    setFases(prev => prev.map((fase, idx) => idx === i ? { ...fase, ...patch } : fase))
   }
 
+  // ── Critérios — todos usam setFases(prev=>) para evitar stale closure ──
+
   function addCriterio(faseIdx: number) {
-    updateFase(faseIdx, {
-      criterios: [
-        ...fases[faseIdx].criterios,
-        { medida_id: medidas?.[0]?.id ?? '', operador: '>=', valor_alvo: 0 },
-      ],
-    })
+    const primeiraMedidaId = medidas?.[0]?.id ?? ''
+    setFases(prev => prev.map((fase, idx) => {
+      if (idx !== faseIdx) return fase
+      return {
+        ...fase,
+        criterios: [
+          ...fase.criterios,
+          { medida_id: primeiraMedidaId, operador: '>=' as OperadorCriterio, valor_alvo: 0 },
+        ],
+      }
+    }))
   }
 
   function updateCriterio(faseIdx: number, cIdx: number, patch: Partial<Criterio>) {
-    const novosCriterios = fases[faseIdx].criterios.map((c, idx) =>
-      idx === cIdx ? { ...c, ...patch } : c,
-    )
-    updateFase(faseIdx, { criterios: novosCriterios })
+    setFases(prev => prev.map((fase, idx) => {
+      if (idx !== faseIdx) return fase
+      return {
+        ...fase,
+        criterios: fase.criterios.map((c, ci) => ci === cIdx ? { ...c, ...patch } : c),
+      }
+    }))
   }
 
   function removeCriterio(faseIdx: number, cIdx: number) {
-    updateFase(faseIdx, {
-      criterios: fases[faseIdx].criterios.filter((_, idx) => idx !== cIdx),
-    })
+    setFases(prev => prev.map((fase, idx) => {
+      if (idx !== faseIdx) return fase
+      return {
+        ...fase,
+        criterios: fase.criterios.filter((_, ci) => ci !== cIdx),
+      }
+    }))
   }
+
+  // ── Submit ────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!profissional) return
     setErro(null)
 
-    // Validações
     for (const [i, f] of fases.entries()) {
       if (f.semana_fim < f.semana_inicio) {
         setErro(`Fase ${i + 1}: semana fim deve ser ≥ semana início.`)
@@ -134,7 +153,7 @@ export function FormPlano({ pacienteId }: Props) {
           semana_inicio: f.semana_inicio,
           semana_fim: f.semana_fim,
           objetivos: f.objetivos.split('\n').filter(Boolean),
-          criterios: f.criterios,
+          criterios: f.criterios.filter(c => c.medida_id), // só inclui critérios com medida selecionada
         })),
       })
       navigate(`/pacientes/${pacienteId}/plano/${plano.id}`)
@@ -144,6 +163,8 @@ export function FormPlano({ pacienteId }: Props) {
       setLoading(false)
     }
   }
+
+  // ── Render ────────────────────────────────────────────────
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
@@ -196,17 +217,19 @@ export function FormPlano({ pacienteId }: Props) {
         <div className="space-y-3">
           {fases.map((fase, fi) => (
             <div key={fi} className="border border-gray-200 rounded-lg overflow-hidden">
-              {/* Header da fase */}
+              {/* Header */}
               <div
-                className="flex items-center gap-3 px-4 py-3 bg-gray-50 cursor-pointer"
+                className="flex items-center gap-3 px-4 py-3 bg-gray-50 cursor-pointer select-none"
                 onClick={() => updateFase(fi, { expanded: !fase.expanded })}
               >
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold">
+                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold shrink-0">
                   {fi + 1}
                 </span>
-                <span className="flex-1 text-sm font-medium text-gray-800">{fase.nome || `Fase ${fi + 1}`}</span>
-                <span className="text-xs text-gray-500">Sem. {fase.semana_inicio}–{fase.semana_fim}</span>
-                <div className="flex items-center gap-1">
+                <span className="flex-1 text-sm font-medium text-gray-800 truncate">
+                  {fase.nome || `Fase ${fi + 1}`}
+                </span>
+                <span className="text-xs text-gray-500 shrink-0">Sem. {fase.semana_inicio}–{fase.semana_fim}</span>
+                <div className="flex items-center gap-1 shrink-0">
                   {fases.length > 1 && (
                     <button
                       type="button"
@@ -216,7 +239,10 @@ export function FormPlano({ pacienteId }: Props) {
                       <Trash2 size={14} />
                     </button>
                   )}
-                  {fase.expanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                  {fase.expanded
+                    ? <ChevronUp size={16} className="text-gray-400" />
+                    : <ChevronDown size={16} className="text-gray-400" />
+                  }
                 </div>
               </div>
 
@@ -252,58 +278,87 @@ export function FormPlano({ pacienteId }: Props) {
                     rows={2}
                   />
 
-                  {/* Critérios de avanço */}
+                  {/* Critérios */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-medium text-gray-600">
-                        Critérios para avançar a fase
-                      </label>
+                      <div>
+                        <span className="text-xs font-medium text-gray-700">
+                          Critérios para avançar a fase
+                        </span>
+                        {fase.criterios.length > 0 && (
+                          <span className="ml-2 text-xs text-gray-400">
+                            ({fase.criterios.length} definido{fase.criterios.length !== 1 ? 's' : ''})
+                          </span>
+                        )}
+                      </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => addCriterio(fi)}
-                        disabled={!medidas?.length}
+                        disabled={loadingMedidas}
                       >
-                        <Plus size={12} /> Critério
+                        <Plus size={12} />
+                        {loadingMedidas ? 'Carregando…' : 'Critério'}
                       </Button>
                     </div>
 
                     {fase.criterios.length === 0 && (
-                      <p className="text-xs text-gray-400 italic">Nenhum critério definido — a transição será manual.</p>
+                      <p className="text-xs text-gray-400 italic py-1">
+                        Nenhum critério — a transição de fase será decidida manualmente pelo coordenador.
+                      </p>
                     )}
 
                     <div className="space-y-2">
                       {fase.criterios.map((c, ci) => (
-                        <div key={ci} className="flex items-end gap-2">
-                          <div className="flex-1">
-                            <Select
-                              options={medidasOpts}
+                        <div key={ci} className="flex items-end gap-2 p-2 bg-gray-50 rounded-lg">
+                          {/* Medida */}
+                          <div className="flex-1 min-w-0">
+                            <label className="text-xs text-gray-500 block mb-1">Medida</label>
+                            <select
                               value={c.medida_id}
                               onChange={e => updateCriterio(fi, ci, { medida_id: e.target.value })}
-                              placeholder="Selecione a medida"
-                            />
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">— selecione —</option>
+                              {medidasOpts.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
+                            </select>
                           </div>
-                          <div className="w-36">
-                            <Select
-                              options={OPERADORES}
+
+                          {/* Operador */}
+                          <div className="w-40 shrink-0">
+                            <label className="text-xs text-gray-500 block mb-1">Condição</label>
+                            <select
                               value={c.operador}
                               onChange={e => updateCriterio(fi, ci, { operador: e.target.value as OperadorCriterio })}
-                            />
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              {OPERADORES.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
+                            </select>
                           </div>
-                          <div className="w-24">
-                            <Input
+
+                          {/* Valor */}
+                          <div className="w-24 shrink-0">
+                            <label className="text-xs text-gray-500 block mb-1">Valor meta</label>
+                            <input
                               type="number"
                               step="0.1"
                               value={c.valor_alvo}
                               onChange={e => updateCriterio(fi, ci, { valor_alvo: Number(e.target.value) })}
-                              placeholder="Valor"
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
+
+                          {/* Remover */}
                           <button
                             type="button"
                             onClick={() => removeCriterio(fi, ci)}
-                            className="mb-2 text-gray-400 hover:text-red-500 transition-colors"
+                            className="shrink-0 p-2 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Remover critério"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -318,7 +373,11 @@ export function FormPlano({ pacienteId }: Props) {
         </div>
       </div>
 
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {erro && (
+        <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-700">{erro}</p>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <Button type="submit" loading={loading}>Criar plano de tratamento</Button>

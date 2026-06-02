@@ -166,6 +166,8 @@ export interface Database {
         tipo: TipoAvaliacao
         data: string
         numero_reav: number | null
+        observacoes: string | null
+        campos_adicionais: { nome: string; valor: string; unidade: string }[]
         criado_em: string
       }>
       valor_medida: T<{

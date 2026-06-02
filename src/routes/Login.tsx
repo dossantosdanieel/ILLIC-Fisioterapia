@@ -1,11 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { signIn } from '@/lib/auth'
+import { useAuth } from '@/lib/AuthContext'
 
 export default function Login() {
+  const { session, loading: authLoading } = useAuth()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Se já está autenticado, redireciona direto
+  useEffect(() => {
+    if (!authLoading && session) {
+      navigate('/pacientes', { replace: true })
+    }
+  }, [session, authLoading, navigate])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -13,12 +24,15 @@ export default function Login() {
     setLoading(true)
     try {
       await signIn(email, senha)
+      navigate('/pacientes', { replace: true })
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Erro ao entrar')
+      setErro(err instanceof Error ? err.message : 'E-mail ou senha incorretos.')
     } finally {
       setLoading(false)
     }
   }
+
+  if (authLoading) return null
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -36,6 +50,7 @@ export default function Login() {
             <input
               type="email"
               required
+              autoFocus
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -57,7 +72,7 @@ export default function Login() {
           </div>
 
           {erro && (
-            <p className="text-sm text-red-600">{erro}</p>
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{erro}</p>
           )}
 
           <button

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, Circle, Clock, AlertTriangle, ChevronRight } from 'lucide-react'
@@ -6,11 +7,15 @@ import { calcularSemanaAtual, calcularMicrocicloAtual, dataReavaliacao, formatar
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardBody, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
+import { SessoesDoPlanoPainel } from '@/features/sessoes/components/SessoesDoPlanoPainel'
 import type { FaseCompleta } from '@/types/queries'
+
+type TabPlano = 'fases' | 'sessoes'
 
 interface Props { planoId: string; pacienteId: string }
 
 export function PainelPlano({ planoId, pacienteId }: Props) {
+  const [tab, setTab] = useState<TabPlano>('fases')
   const { data: plano, isLoading } = useQuery({
     queryKey: ['plano', planoId],
     queryFn: () => buscarPlanoCompleto(planoId),
@@ -68,7 +73,28 @@ export function PainelPlano({ planoId, pacienteId }: Props) {
         </CardBody>
       </Card>
 
-      {/* Fases */}
+      {/* Tabs: Fases / Sessões */}
+      <div className="flex border-b border-gray-200">
+        {(['fases', 'sessoes'] as TabPlano[]).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t === 'fases' ? 'Fases e critérios' : 'Sessões do plano'}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab: Sessões */}
+      {tab === 'sessoes' && (
+        <SessoesDoPlanoPainel planoId={planoId} pacienteId={pacienteId} />
+      )}
+
+      {/* Tab: Fases */}
+      {tab === 'fases' && (
       <Card>
         <CardHeader><CardTitle>Fases do protocolo</CardTitle></CardHeader>
         <div className="divide-y divide-gray-100">
@@ -164,7 +190,9 @@ export function PainelPlano({ planoId, pacienteId }: Props) {
           })}
         </div>
       </Card>
+      )}
 
+      {/* Botão de reavaliação — sempre visível */}
       <div className="flex justify-end">
         <Link
           to={`/pacientes/${pacienteId}/avaliacoes/nova?plano=${planoId}`}

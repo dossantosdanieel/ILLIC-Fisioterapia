@@ -131,6 +131,62 @@ export async function buscarOuCriarTemplate(microcicloId: string): Promise<Sessa
   return { ...data!, bloco: [] } as unknown as SessaoTemplateCompleta
 }
 
+// ── Copy/paste de sessão entre microciclos ────────────────
+
+export async function copiarTemplate(
+  fromTemplateId: string,
+  toMicrocicloId: string,
+): Promise<SessaoTemplateCompleta> {
+  // 1. Busca o template origem completo
+  const origem = await buscarSessaoTemplate(fromTemplateId)
+
+  // 2. Cria (ou apaga e recria) o template destino
+  const { data: existente } = await supabase
+    .from('sessao_template').select('id').eq('microciclo_id', toMicrocicloId).maybeSingle()
+
+  let destinoId: string
+  if (existente) {
+    // Apaga todos os blocos (cascata apaga exercícios)
+    await supabase.from('bloco').delete().eq('sessao_template_id', existente.id)
+    destinoId = existente.id
+  } else {
+    const { data, error } = await supabase
+      .from('sessao_template').insert({ microciclo_id: toMicrocicloId }).select('id').single()
+    if (error) throw error
+    destinoId = data!.id
+  }
+
+  // 3. Recria os blocos e exercícios no destino
+  const blocos = [...(origem.bloco ?? [])].sort((a, b) => a.ordem - b.ordem)
+  for (const bloco of blocos) {
+    const { data: novoBloco, error: errB } = await supabase
+      .from('bloco').insert({ sessao_template_id: destinoId, nome: bloco.nome, ordem: bloco.ordem })
+      .select('id').single()
+    if (errB) throw errB
+
+    const exs = [...(bloco.exercicio_prescrito ?? [])].sort((a, b) => a.ordem - b.ordem)
+    if (exs.length > 0) {
+      const insertsEx: ExercicioPrescritoInsert[] = exs.map(ep => ({
+        bloco_id: novoBloco!.id,
+        exercicio_id: ep.exercicio_id,
+        series: ep.series,
+        reps: ep.reps,
+        tempo_seg: ep.tempo_seg,
+        carga_tipo: ep.carga_tipo,
+        carga_valor: ep.carga_valor,
+        nota: ep.nota,
+        condicional: ep.condicional,
+        ordem: ep.ordem,
+        regra_progressao: ep.regra_progressao,
+      }))
+      const { error: errE } = await supabase.from('exercicio_prescrito').insert(insertsEx)
+      if (errE) throw errE
+    }
+  }
+
+  return buscarOuCriarTemplate(toMicrocicloId)
+}
+
 // ── Blocos ────────────────────────────────────────────────
 
 export async function criarBloco(templateId: string, nome: string, ordem: number) {
