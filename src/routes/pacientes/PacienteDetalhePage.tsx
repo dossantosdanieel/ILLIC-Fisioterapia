@@ -1,7 +1,8 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, Plus, Calendar, User } from 'lucide-react'
+import { ChevronLeft, Plus, Calendar, User, Pencil } from 'lucide-react'
 import { buscarPaciente, prioridadeBadge, prioridadeLabel } from '@/features/pacientes/api'
+import { EditarPacienteModal } from '@/features/pacientes/components/EditarPacienteModal'
 import { listarPlanosDoPaciente } from '@/features/planos/api'
 import { PainelPlano } from '@/features/planos/components/PainelPlano'
 import { LinhaDoTempoGantt } from '@/features/planos/components/LinhaDoTempoGantt'
@@ -24,6 +25,7 @@ export default function PacienteDetalhePage() {
   const navigate = useNavigate()
   const { profissional } = useAuth()
   const [tab, setTab] = useState<Tab>('plano')
+  const [editando, setEditando] = useState(false)
 
   const { data: pacienteRaw, isLoading } = useQuery({
     queryKey: ['paciente', id],
@@ -76,6 +78,9 @@ export default function PacienteDetalhePage() {
         </div>
 
         <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setEditando(true)}>
+            <Pencil size={14} /> Editar
+          </Button>
           <Button variant="secondary" size="sm"
             onClick={() => navigate(`/pacientes/${id}/checkin`)}>
             Check-in
@@ -159,6 +164,14 @@ export default function PacienteDetalhePage() {
           </div>
           <HistoricoAvaliacoes pacienteId={id!} planoId={planoAtivo?.id} />
         </Card>
+      )}
+
+      {editando && (
+        <EditarPacienteModal
+          open={editando}
+          onClose={() => setEditando(false)}
+          paciente={p}
+        />
       )}
     </div>
   )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -18,6 +18,7 @@ const PRIORIDADES = [
 export function FormPaciente() {
   const { profissional } = useAuth()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -72,6 +73,7 @@ export function FormPaciente() {
         data_consentimento: new Date().toISOString(),
         ativo: true,
       })
+      qc.invalidateQueries({ queryKey: ['pacientes'] })
       navigate(`/pacientes/${paciente.id}`)
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao cadastrar')
