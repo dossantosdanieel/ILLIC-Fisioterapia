@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/AuthContext'
-import { criarPaciente } from '../api'
+import { criarPaciente, buscarPacientesPorNome } from '../api'
 import { listarProfissionais } from '@/features/coordenacao/api'
+import { AlertTriangle, ExternalLink } from 'lucide-react'
 
 const PRIORIDADES = [
   { value: 'alta', label: 'Alta' },
@@ -15,14 +16,20 @@ const PRIORIDADES = [
   { value: 'baixa', label: 'Baixa' },
 ]
 
+type Duplicata = { id: string; nome: string; diagnostico: string | null; profissional: { nome: string } | null }
+
 export function FormPaciente() {
   const { profissional } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [duplicatas, setDuplicatas] = useState<Duplicata[]>([])
+  const [forcarCadastro, setForcarCadastro] = useState(false)
+  const [checandoDuplicata, setChecandoDuplicata] = useState(false)
 
-  // Busca fisioterapeutas para o seletor de designação
+  const isAdminOuCoord = profissional?.papeis?.some(p => p === 'coordenador' || p === 'admin') ?? false
+
   const { data: profissionais } = useQuery({
     queryKey: ['profissionais'],
     queryFn: listarProfissionais,
@@ -40,16 +47,35 @@ export function FormPaciente() {
     consentimento_lgpd: false,
   })
 
-  // Sincroniza o primeiro fisio quando a query carrega
   const fisioId = form.fisio_responsavel_id || fisios[0]?.id || ''
 
   function set(field: string, value: string | boolean) {
     setForm(f => ({ ...f, [field]: value }))
+    if (field === 'nome') {
+      setDuplicatas([])
+      setForcarCadastro(false)
+    }
   }
+
+  async function handleNomeBlur() {
+    const nome = form.nome.trim()
+    if (nome.length < 3) return
+    setChecandoDuplicata(true)
+    try {
+      const encontrados = await buscarPacientesPorNome(nome)
+      setDuplicatas(encontrados)
+      if (encontrados.length > 0) setForcarCadastro(false)
+    } finally {
+      setChecandoDuplicata(false)
+    }
+  }
+
+  const bloqueadoPorDuplicata = duplicatas.length > 0 && !forcarCadastro
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!profissional) return
+    if (bloqueadoPorDuplicata) return
     if (!fisioId) {
       setErro('Selecione o fisioterapeuta responsável.')
       return
@@ -85,13 +111,87 @@ export function FormPaciente() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
 
-      <Input
-        label="Nome completo *"
-        required
-        value={form.nome}
-        onChange={e => set('nome', e.target.value)}
-        placeholder="Nome do paciente"
-      />
+      <div>
+        <Input
+          label="Nome completo *"
+          required
+          value={form.nome}
+          onChange={e => set('nome', e.target.value)}
+          onBlur={handleNomeBlur}
+          placeholder="Nome do paciente"
+        />
+        {checandoDuplicata && (
+          <p className="text-xs text-gray-400 mt-1">Verificando cadastros existentes…</p>
+        )}
+      </div>
+
+      {/* Aviso de duplicata */}
+      {duplicatas.length > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">
+                {duplicatas.length === 1
+                  ? 'Já existe um paciente cadastrado com este nome:'
+                  : `Já existem ${duplicatas.length} pacientes cadastrados com este nome:`}
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {duplicatas.map(d => (
+                  <li key={d.id} className="flex items-center gap-2">
+                    <Link
+                      to={`/pacientes/${d.id}`}
+                      target="_blank"
+                      className="text-sm text-amber-700 font-medium underline underline-offset-2 hover:text-amber-900 flex items-center gap-1"
+                    >
+                      {d.nome} <ExternalLink size={12} />
+                    </Link>
+                    {d.diagnostico && (
+                      <span className="text-xs text-amber-600">— {d.diagnostico}</span>
+                    )}
+                    {d.profissional && (
+                      <span className="text-xs text-amber-500">({d.profissional.nome})</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {isAdminOuCoord ? (
+            <div className="flex items-center gap-3 pt-1 border-t border-amber-200">
+              <p className="text-xs text-amber-700 flex-1">
+                Como coordenador/admin, você pode prosseguir com o cadastro mesmo assim.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setForcarCadastro(true)}
+              >
+                Cadastrar mesmo assim
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-amber-700 border-t border-amber-200 pt-2">
+              Para cadastrar um paciente com o mesmo nome, fale com a coordenação.
+            </p>
+          )}
+        </div>
+      )}
+
+      {forcarCadastro && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 flex items-center justify-between">
+          <p className="text-xs text-blue-700">Cadastro duplicado autorizado pela coordenação.</p>
+          <button
+            type="button"
+            className="text-xs text-blue-500 underline"
+            onClick={() => setForcarCadastro(false)}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <Input
@@ -123,7 +223,6 @@ export function FormPaciente() {
         placeholder="Ex: Norden, Particular…"
       />
 
-      {/* Seletor de fisioterapeuta responsável */}
       <div>
         <Select
           label="Fisioterapeuta responsável *"
@@ -162,7 +261,11 @@ export function FormPaciente() {
       )}
 
       <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={loading} disabled={fisios.length === 0}>
+        <Button
+          type="submit"
+          loading={loading}
+          disabled={fisios.length === 0 || bloqueadoPorDuplicata}
+        >
           Cadastrar paciente
         </Button>
         <Button type="button" variant="secondary" onClick={() => navigate('/pacientes')}>

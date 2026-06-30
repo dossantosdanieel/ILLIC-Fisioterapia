@@ -32,6 +32,17 @@ export async function buscarPaciente(id: string): Promise<PacienteDetalhe> {
   return data as unknown as PacienteDetalhe
 }
 
+export async function buscarPacientesPorNome(nome: string) {
+  const { data, error } = await supabase
+    .from('paciente')
+    .select('id, nome, diagnostico, profissional:fisio_responsavel_id(nome)')
+    .ilike('nome', nome.trim())
+    .eq('ativo', true)
+    .limit(5)
+  if (error) throw error
+  return (data ?? []) as unknown as { id: string; nome: string; diagnostico: string | null; profissional: { nome: string } | null }[]
+}
+
 export async function criarPaciente(
   payload: Omit<PacienteInsert, 'fisio_responsavel_id'> & { fisio_responsavel_id: string },
 ) {
