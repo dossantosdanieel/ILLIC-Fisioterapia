@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, MessageSquare, AlertTriangle, TrendingDown, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronRight, MessageSquare, AlertTriangle, TrendingDown, Clock, ChevronDown, ChevronUp, CalendarClock } from 'lucide-react'
 import { listarPacientesParaCoordenador, listarCheckinsDoPaciente, listarNotasDoPaciente, criarNota, registrarCheckin, semanaISO } from '../api'
 import type { PacienteComAtencao } from '../api'
 import { useAuth } from '@/lib/AuthContext'
@@ -24,11 +24,25 @@ export function ModoReuniao({ fisioFiltro = '' }: Props) {
     queryFn: () => listarPacientesParaCoordenador(fisioFiltro || undefined),
   })
 
+  const NIVEL_PESO: Record<string, number> = { vencido: 0, alerta: 1, reav_semana: 2, checkin_pendente: 3 }
+  const PRIO_PESO: Record<string, number> = { alta: 0, moderada: 1, baixa: 2 }
+
+  function diasSemNota(p: PacienteComAtencao): number {
+    if (!p.ultima_nota_data) return 9999
+    return Math.floor((Date.now() - new Date(p.ultima_nota_data).getTime()) / 86400000)
+  }
+
   const aCases = (pacientes ?? [])
     .filter(p => p.nivel_atencao !== 'ok')
     .sort((a, b) => {
-      const ordem: Record<string, number> = { vencido: 0, alerta: 1, reav_semana: 2, checkin_pendente: 3 }
-      return (ordem[a.nivel_atencao] ?? 4) - (ordem[b.nivel_atencao] ?? 4)
+      // 1º critério: complexidade (nivel_atencao)
+      const nivelDiff = (NIVEL_PESO[a.nivel_atencao] ?? 4) - (NIVEL_PESO[b.nivel_atencao] ?? 4)
+      if (nivelDiff !== 0) return nivelDiff
+      // 2º critério: prioridade do paciente
+      const prioDiff = (PRIO_PESO[a.prioridade] ?? 1) - (PRIO_PESO[b.prioridade] ?? 1)
+      if (prioDiff !== 0) return prioDiff
+      // 3º critério: quem ficou mais tempo sem anotação vem primeiro
+      return diasSemNota(b) - diasSemNota(a)
     })
 
   if (isLoading) return <Spinner />
@@ -61,9 +75,17 @@ export function ModoReuniao({ fisioFiltro = '' }: Props) {
                   <span key={i} className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{m}</span>
                 ))}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {p.fisio_nome}
-                {p.semana_atual !== null && p.prognostico_semanas && ` · Sem. ${p.semana_atual}/${p.prognostico_semanas}`}
+              <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                <span>{p.fisio_nome}</span>
+                {p.semana_atual !== null && p.prognostico_semanas && (
+                  <span>Sem. {p.semana_atual}/{p.prognostico_semanas}</span>
+                )}
+                <span className={`flex items-center gap-1 ${diasSemNota(p) >= 14 ? 'text-orange-500 font-medium' : 'text-gray-400'}`}>
+                  <CalendarClock size={11} />
+                  {p.ultima_nota_data
+                    ? `última anotação há ${diasSemNota(p)}d`
+                    : 'sem anotações'}
+                </span>
               </p>
             </div>
             <ChevronRight size={16} className={`text-gray-400 transition-transform ${pacienteAberto === p.id ? 'rotate-90' : ''}`} />

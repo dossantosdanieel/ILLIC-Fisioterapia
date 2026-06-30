@@ -37,6 +37,7 @@ export interface PacienteResumo {
   data_av_inicial: string | null; frequencia_semanal: number | null; semana_atual: number | null
   ultimo_checkin_trajetoria: string | null; ultimo_checkin_confianca: string | null
   ultimo_checkin_discutir: boolean | null; ultimo_checkin_data: string | null
+  ultima_nota_data: string | null
   sessoes_semana: number
 }
 
@@ -78,6 +79,17 @@ export async function listarPacientesParaCoordenador(fisioId?: string): Promise<
   const ultimoCheckin = new Map<string, CheckinRaw>()
   for (const ci of checkins) {
     if (!ultimoCheckin.has(ci.paciente_id)) ultimoCheckin.set(ci.paciente_id, ci)
+  }
+
+  const { data: notasRaw } = await supabase
+    .from('nota_reuniao')
+    .select('paciente_id, data')
+    .in('paciente_id', ids)
+    .order('data', { ascending: false })
+
+  const ultimaNota = new Map<string, string>()
+  for (const n of (notasRaw ?? []) as { paciente_id: string; data: string }[]) {
+    if (!ultimaNota.has(n.paciente_id)) ultimaNota.set(n.paciente_id, n.data)
   }
 
   const hoje = new Date()
@@ -129,6 +141,7 @@ export async function listarPacientesParaCoordenador(fisioId?: string): Promise<
       ultimo_checkin_confianca: ci?.confianca ?? null,
       ultimo_checkin_discutir: ci?.precisa_discutir ?? null,
       ultimo_checkin_data: ci?.data ?? null,
+      ultima_nota_data: ultimaNota.get(p.id) ?? null,
       sessoes_semana: 0,
       nivel_atencao: nivel,
       motivo_atencao: motivos,
