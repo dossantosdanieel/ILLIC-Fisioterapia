@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Clock, MessageCircle, TrendingDown, Users, Filter } from 'lucide-react'
-import { listarPacientesParaCoordenador, listarProfissionais } from '../api'
+import { AlertTriangle, Clock, MessageCircle, TrendingDown, Users } from 'lucide-react'
+import { listarPacientesParaCoordenador } from '../api'
 import type { PacienteComAtencao, NivelAtencao } from '../api'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -31,21 +31,17 @@ const ORDEM_NIVEL: Record<NivelAtencao, number> = {
 
 const PRIORIDADE_ORDEM: Record<string, number> = { alta: 0, moderada: 1, baixa: 2 }
 
-export function PainelCoordenador() {
-  const [fisioFiltro, setFisioFiltro] = useState<string>('')
-  const [nivelFiltro, setNivelFiltro] = useState<NivelAtencao | ''>('')
+interface Props {
+  fisioFiltro?: string
+}
 
-  const { data: profissionais } = useQuery({
-    queryKey: ['profissionais'],
-    queryFn: listarProfissionais,
-  })
+export function PainelCoordenador({ fisioFiltro = '' }: Props) {
+  const [nivelFiltro, setNivelFiltro] = useState<NivelAtencao | ''>('')
 
   const { data: pacientes, isLoading } = useQuery({
     queryKey: ['pacientes-coord', fisioFiltro],
     queryFn: () => listarPacientesParaCoordenador(fisioFiltro || undefined),
   })
-
-  const fisios = (profissionais ?? []).filter(p => p.papeis?.includes('fisioterapeuta'))
 
   // Totais para os cartões de resumo
   const totalVencidos = (pacientes ?? []).filter(p => p.nivel_atencao === 'vencido').length
@@ -83,17 +79,8 @@ export function PainelCoordenador() {
         ))}
       </div>
 
-      {/* Filtros */}
+      {/* Contador e filtro de nível */}
       <div className="flex items-center gap-3">
-        <Filter size={14} className="text-gray-400" />
-        <select
-          value={fisioFiltro}
-          onChange={e => setFisioFiltro(e.target.value)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Todos os fisioterapeutas</option>
-          {fisios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-        </select>
         {nivelFiltro && (
           <button onClick={() => setNivelFiltro('')}
             className="text-xs text-blue-600 hover:underline">

@@ -1,17 +1,18 @@
 import { useState } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, Filter } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/lib/AuthContext'
 import { PainelCoordenador } from '@/features/coordenacao/components/PainelCoordenador'
 import { ModoReuniao } from '@/features/coordenacao/components/ModoReuniao'
 import { FeedNotificacoes } from '@/features/coordenacao/components/FeedNotificacoes'
-import { listarNotificacoes } from '@/features/coordenacao/api'
+import { listarNotificacoes, listarProfissionais } from '@/features/coordenacao/api'
 
 type Tab = 'painel' | 'reuniao' | 'notificacoes'
 
 export default function CoordenacaoPage() {
   const { profissional } = useAuth()
   const [tab, setTab] = useState<Tab>('painel')
+  const [fisioFiltro, setFisioFiltro] = useState('')
 
   const { data: notifs } = useQuery({
     queryKey: ['notificacoes', profissional?.id],
@@ -20,6 +21,12 @@ export default function CoordenacaoPage() {
     refetchInterval: 30_000,
   })
   const naolidas = (notifs ?? []).filter(n => !n.lida).length
+
+  const { data: profissionais } = useQuery({
+    queryKey: ['profissionais'],
+    queryFn: listarProfissionais,
+  })
+  const fisios = (profissionais ?? []).filter(p => p.papeis?.includes('fisioterapeuta'))
 
   const TABS: { key: Tab; label: React.ReactNode }[] = [
     { key: 'painel', label: 'Painel' },
@@ -47,6 +54,24 @@ export default function CoordenacaoPage() {
           <h1 className="text-lg font-semibold text-gray-900">Coordenação</h1>
           <p className="text-sm text-gray-500 mt-0.5">Visão consolidada da clínica</p>
         </div>
+
+        {/* Filtro de fisioterapeuta — nível de página */}
+        <div className="flex items-center gap-2">
+          <Filter size={14} className="text-gray-400" />
+          <select
+            value={fisioFiltro}
+            onChange={e => setFisioFiltro(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todos os fisioterapeutas</option>
+            {fisios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+          </select>
+          {fisioFiltro && (
+            <button onClick={() => setFisioFiltro('')} className="text-xs text-blue-600 hover:underline">
+              Limpar
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -64,8 +89,8 @@ export default function CoordenacaoPage() {
         ))}
       </div>
 
-      {tab === 'painel' && <PainelCoordenador />}
-      {tab === 'reuniao' && <ModoReuniao />}
+      {tab === 'painel' && <PainelCoordenador fisioFiltro={fisioFiltro} />}
+      {tab === 'reuniao' && <ModoReuniao fisioFiltro={fisioFiltro} />}
       {tab === 'notificacoes' && <FeedNotificacoes />}
     </div>
   )

@@ -13,13 +13,17 @@ import { Spinner } from '@/components/ui/spinner'
 import { formatarData } from '@/features/planos/utils'
 import { prioridadeBadge, prioridadeLabel } from '@/features/pacientes/api'
 
-export function ModoReuniao() {
+interface Props {
+  fisioFiltro?: string
+}
+
+export function ModoReuniao({ fisioFiltro = '' }: Props) {
   const { profissional } = useAuth()
   const [pacienteAberto, setPacienteAberto] = useState<string | null>(null)
 
   const { data: pacientes, isLoading } = useQuery({
-    queryKey: ['pacientes-coord', ''],
-    queryFn: () => listarPacientesParaCoordenador(),
+    queryKey: ['pacientes-coord', fisioFiltro],
+    queryFn: () => listarPacientesParaCoordenador(fisioFiltro || undefined),
   })
 
   // Filtrar apenas os que precisam atenção
