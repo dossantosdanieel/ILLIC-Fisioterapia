@@ -39,7 +39,7 @@ export default function Layout() {
     <div className="flex h-screen bg-gray-50">
       <aside className="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0">
         <div className="px-4 py-4 border-b border-gray-200">
-          <img src="/logo.svg" alt="ILLIC" className="h-6 w-auto mb-1" />
+          <img src="/logo.png" alt="ILLIC" className="h-6 w-auto mb-1" />
           <p className="text-xs text-gray-500">Reabilitação</p>
         </div>
 

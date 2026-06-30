@@ -38,7 +38,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm">
         <div className="mb-8">
-          <img src="/logo.svg" alt="ILLIC" className="h-10 w-auto mb-2" />
+          <img src="/logo.png" alt="ILLIC" className="h-10 w-auto mb-2" />
           <p className="text-sm text-gray-500">Sistema de Reabilitação</p>
         </div>
 
