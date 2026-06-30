@@ -120,7 +120,7 @@ export function FormPaciente() {
         label="Convênio / Plano"
         value={form.convenio_plano}
         onChange={e => set('convenio_plano', e.target.value)}
-        placeholder="Ex: Unimed, Particular…"
+        placeholder="Ex: Norden, Particular…"
       />
 
       {/* Seletor de fisioterapeuta responsável */}

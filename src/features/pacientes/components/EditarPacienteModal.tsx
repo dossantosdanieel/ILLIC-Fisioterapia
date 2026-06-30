@@ -121,7 +121,7 @@ export function EditarPacienteModal({ open, onClose, paciente }: Props) {
           label="Convênio / Plano"
           value={form.convenio_plano}
           onChange={e => set('convenio_plano', e.target.value)}
-          placeholder="Ex: Unimed, Particular…"
+          placeholder="Ex: Norden, Particular…"
         />
 
         {fisiosOpts.length > 0 && (
