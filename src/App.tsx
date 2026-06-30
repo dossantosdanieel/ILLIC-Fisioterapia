@@ -41,14 +41,6 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 2, retry: 1 } },
 })
 
-function Placeholder({ titulo }: { titulo: string }) {
-  return (
-    <div className="p-8">
-      <h2 className="text-lg font-semibold text-gray-900">{titulo}</h2>
-      <p className="text-sm text-gray-500 mt-1">Em construção — próxima fase</p>
-    </div>
-  )
-}
 
 export default function App() {
   return (
