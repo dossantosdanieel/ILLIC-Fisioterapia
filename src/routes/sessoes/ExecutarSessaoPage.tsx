@@ -3,14 +3,16 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { buscarSessaoTemplate } from '@/features/sessoes/api'
 import { buscarPaciente } from '@/features/pacientes/api'
+import { buscarPlanoCompleto } from '@/features/planos/api'
 import { ExecutarSessao } from '@/features/sessoes/components/ExecutarSessao'
 import { Spinner } from '@/components/ui/spinner'
-import type { PacienteDetalhe } from '@/types/queries'
+import type { PacienteDetalhe, FaseCompleta } from '@/types/queries'
 
 export default function ExecutarSessaoPage() {
   const { id, templateId } = useParams<{ id: string; templateId: string }>()
   const [searchParams] = useSearchParams()
   const planoId = searchParams.get('plano') ?? undefined
+  const faseId = searchParams.get('fase') ?? undefined
 
   const { data: template, isLoading: loadingT } = useQuery({
     queryKey: ['sessao-template', templateId],
@@ -25,8 +27,19 @@ export default function ExecutarSessaoPage() {
   })
   const paciente = pacienteRaw as PacienteDetalhe | undefined
 
-  if (loadingT || loadingP) return <Spinner />
+  const { data: plano, isLoading: loadingPlano } = useQuery({
+    queryKey: ['plano', planoId],
+    queryFn: () => buscarPlanoCompleto(planoId!),
+    enabled: !!planoId,
+  })
+
+  if (loadingT || loadingP || loadingPlano) return <Spinner />
   if (!template || !paciente) return null
+
+  const fase = faseId && plano
+    ? (plano.fase as FaseCompleta[]).find(f => f.id === faseId)
+    : undefined
+  const objetivos = fase?.objetivos as string[] | undefined
 
   const totalEx = template.bloco.flatMap(b => b.exercicio_prescrito).length
 
@@ -47,7 +60,7 @@ export default function ExecutarSessaoPage() {
           Nenhum exercício prescrito nesta sessão. Monte a sessão primeiro no builder.
         </p>
       ) : (
-        <ExecutarSessao template={template} pacienteId={id!} planoId={planoId} />
+        <ExecutarSessao template={template} pacienteId={id!} pacienteNome={paciente.nome} planoId={planoId} objetivos={objetivos} />
       )}
     </div>
   )

@@ -14,7 +14,7 @@ import { ClipboardList } from 'lucide-react'
 export default function SessoesPage() {
   const { profissional } = useAuth()
   const qc = useQueryClient()
-  const isAdmin = profissional?.papel === 'admin'
+  const isAdmin = profissional?.papeis?.includes('admin')
 
   const [busca, setBusca] = useState('')
   const [modal, setModal] = useState(false)

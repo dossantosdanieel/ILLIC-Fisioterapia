@@ -140,7 +140,7 @@ export async function listarPacientesParaCoordenador(fisioId?: string): Promise<
 
 export async function listarProfissionais() {
   const { data, error } = await supabase
-    .from('profissional').select('id, nome, papel').eq('ativo', true).order('nome')
+    .from('profissional').select('id, nome, papeis').eq('ativo', true).order('nome')
   if (error) throw error
   return data ?? []
 }

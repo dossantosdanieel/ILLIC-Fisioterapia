@@ -4,8 +4,8 @@ import { MessageSquare, Plus } from 'lucide-react'
 import { listarNotasDoPaciente, criarNota } from '../api'
 import { useAuth } from '@/lib/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { Spinner } from '@/components/ui/spinner'
+import { RichTextEditor, RichTextView } from '@/components/ui/RichTextEditor'
 import { formatarData } from '@/features/planos/utils'
 
 interface Props { pacienteId: string }
@@ -23,8 +23,14 @@ export function NotasReuniao({ pacienteId }: Props) {
     queryFn: () => listarNotasDoPaciente(pacienteId),
   })
 
+  function isVazio(html: string) {
+    const div = document.createElement('div')
+    div.innerHTML = html
+    return !div.textContent?.trim()
+  }
+
   async function handleSalvar() {
-    if (!texto.trim() || !profissional) return
+    if (isVazio(texto) || !profissional) return
     setSaving(true)
     try {
       await criarNota({
@@ -55,12 +61,12 @@ export function NotasReuniao({ pacienteId }: Props) {
 
       {aberto && (
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
-          <Textarea
+          <RichTextEditor
             label="Nota de reunião"
             placeholder="Discussão, contexto clínico, decisão tomada…"
             value={texto}
-            onChange={e => setTexto(e.target.value)}
-            rows={3}
+            onChange={setTexto}
+            minHeight={100}
           />
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Ação definida (opcional)</label>
@@ -73,7 +79,7 @@ export function NotasReuniao({ pacienteId }: Props) {
             />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleSalvar} loading={saving} disabled={!texto.trim()}>
+            <Button size="sm" onClick={handleSalvar} loading={saving} disabled={isVazio(texto)}>
               Salvar nota
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setAberto(false)}>Cancelar</Button>
@@ -94,7 +100,7 @@ export function NotasReuniao({ pacienteId }: Props) {
                 {formatarData(nota.data)} · {nota.autor?.nome}
               </span>
             </div>
-            <p className="text-sm text-gray-800 whitespace-pre-wrap">{nota.texto}</p>
+            <RichTextView html={nota.texto} />
             {nota.acao_definida && (
               <div className="mt-2 pt-2 border-t border-gray-100">
                 <span className="text-xs font-medium text-blue-700">→ Ação: </span>

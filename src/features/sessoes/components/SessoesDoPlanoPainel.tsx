@@ -40,6 +40,7 @@ export function SessoesDoPlanoPainel({ planoId, pacienteId }: Props) {
     mc: MicrocicloComTemplate
     faseNome: string
     faseOrdem: number
+    faseObjetivos: string[]
     sessaoInicio: number
     sessaoFim: number
     isAtual: boolean
@@ -58,6 +59,7 @@ export function SessoesDoPlanoPainel({ planoId, pacienteId }: Props) {
         mc,
         faseNome: fase.nome,
         faseOrdem: fase.ordem,
+        faseObjetivos: (fase.objetivos as string[]) ?? [],
         sessaoInicio: sessaoAcumulada,
         sessaoFim: sessaoAcumulada + sessoesNeMc - 1,
         isAtual,
@@ -109,7 +111,7 @@ export function SessoesDoPlanoPainel({ planoId, pacienteId }: Props) {
         </div>
       )}
 
-      {listaMcs.map(({ mc, faseNome, faseOrdem, sessaoInicio, sessaoFim, isAtual, concluido }, idx) => {
+      {listaMcs.map(({ mc, faseNome, faseOrdem, faseObjetivos, sessaoInicio, sessaoFim, isAtual, concluido }, idx) => {
         const expanded = expandidos.has(mc.id)
         const templateId = mc.sessao_template?.[0]?.id ?? null
         const prevFase = idx > 0 ? listaMcs[idx - 1].faseOrdem : -1
@@ -237,6 +239,7 @@ export function SessoesDoPlanoPainel({ planoId, pacienteId }: Props) {
                   <BuilderSessao
                     microcicloId={mc.id}
                     semanas={`${mc.semana_inicio}–${mc.semana_fim}`}
+                    objetivos={faseObjetivos}
                   />
                 </div>
               )}

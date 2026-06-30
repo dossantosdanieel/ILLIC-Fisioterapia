@@ -26,8 +26,9 @@ export default function ProtectedRoute({ children, minPapel }: Props) {
 
   if (!session) return <Navigate to="/login" replace />
 
-  if (minPapel && profissional && ORDEM[profissional.papel] < ORDEM[minPapel]) {
-    return <Navigate to="/pacientes" replace />
+  if (minPapel && profissional) {
+    const nivelMax = Math.max(...(profissional.papeis ?? ['fisioterapeuta']).map(p => ORDEM[p]))
+    if (nivelMax < ORDEM[minPapel]) return <Navigate to="/pacientes" replace />
   }
 
   return <>{children}</>

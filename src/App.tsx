@@ -28,6 +28,15 @@ import PacienteCoordenacaoPage from '@/routes/coordenacao/PacienteCoordenacaoPag
 // Fase 4
 import PerformancePage from '@/routes/performance/PerformancePage'
 
+// Admin
+import AdminPage from '@/routes/admin/AdminPage'
+
+// Protocolos
+import ProtocolosPage from '@/routes/protocolos/ProtocolosPage'
+import ProtocoloDetalhePage from '@/routes/protocolos/ProtocoloDetalhePage'
+import NovoProtocoloPage from '@/routes/protocolos/NovoProtocoloPage'
+import EditarProtocoloPage from '@/routes/protocolos/EditarProtocoloPage'
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 2, retry: 1 } },
 })
@@ -81,8 +90,18 @@ export default function App() {
               <Route path="performance" element={
                 <ProtectedRoute minPapel="coordenador"><PerformancePage /></ProtectedRoute>
               } />
+              {/* ── Protocolos ── */}
+              <Route path="protocolos" element={<ProtocolosPage />} />
+              <Route path="protocolos/novo" element={
+                <ProtectedRoute minPapel="coordenador"><NovoProtocoloPage /></ProtectedRoute>
+              } />
+              <Route path="protocolos/:id" element={<ProtocoloDetalhePage />} />
+              <Route path="protocolos/:id/editar" element={
+                <ProtectedRoute minPapel="coordenador"><EditarProtocoloPage /></ProtectedRoute>
+              } />
+
               <Route path="admin" element={
-                <ProtectedRoute minPapel="admin"><Placeholder titulo="Administração" /></ProtectedRoute>
+                <ProtectedRoute minPapel="admin"><AdminPage /></ProtectedRoute>
               } />
             </Route>
 

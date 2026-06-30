@@ -5,7 +5,10 @@ export type TipoAvaliacao = 'inicial' | 'reavaliacao'
 export type OperadorCriterio = '>=' | '<=' | '='
 export type DirecaoMelhora = 'maior' | 'menor'
 export type UnidadeMedida = 'eva' | 'graus' | 'kgf' | 'seg' | 'percent' | 'passfail'
-export type CargaTipo = 'kg' | 'kgf' | 'percent_1rm' | 'rm' | 'banda_cor' | 'peso_corporal' | 'tempo'
+export type CargaTipo =
+  | 'kg' | 'kgf' | 'percent_1rm' | 'rm' | 'banda_cor' | 'peso_corporal' | 'tempo'
+  | 'faixa_leve' | 'faixa_moderada' | 'faixa_forte'
+  | 'superband_leve' | 'superband_media' | 'superband_forte'
 export type TipoNotificacao =
   | 'criterio_nao_atingido'
   | 'plano_vencido'
@@ -41,7 +44,7 @@ export interface Database {
         nome: string
         crefito: string | null
         email: string
-        papel: Papel
+        papeis: Papel[]
         ativo: boolean
         criado_em: string
       }>
@@ -145,6 +148,7 @@ export interface Database {
         realizado: boolean
         carga_real: string | null
         reps_real: number | null
+        tempo_real: number | null
         motivo_nao_realizado: MotivoNaoRealizado | null
         motivo_texto: string | null
         alterado_em_tempo_real: boolean

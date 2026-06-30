@@ -45,7 +45,7 @@ export function PainelCoordenador() {
     queryFn: () => listarPacientesParaCoordenador(fisioFiltro || undefined),
   })
 
-  const fisios = (profissionais ?? []).filter(p => p.papel === 'fisioterapeuta')
+  const fisios = (profissionais ?? []).filter(p => p.papeis?.includes('fisioterapeuta'))
 
   // Totais para os cartões de resumo
   const totalVencidos = (pacientes ?? []).filter(p => p.nivel_atencao === 'vencido').length

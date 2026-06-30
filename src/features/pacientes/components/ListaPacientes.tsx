@@ -11,7 +11,7 @@ import type { PacienteComPlano } from '@/types/queries'
 
 export function ListaPacientes() {
   const { profissional } = useAuth()
-  const isCoord = profissional?.papel === 'coordenador' || profissional?.papel === 'admin'
+  const isCoord = profissional?.papeis?.some(p => p === 'coordenador' || p === 'admin')
 
   const { data: pacientes, isLoading } = useQuery({
     queryKey: ['pacientes', profissional?.id],

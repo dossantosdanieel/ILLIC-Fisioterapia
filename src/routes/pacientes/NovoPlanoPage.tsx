@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { buscarPaciente } from '@/features/pacientes/api'
@@ -8,6 +8,8 @@ import type { PacienteDetalhe } from '@/types/queries'
 
 export default function NovoPlanoPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const protocoloId = searchParams.get('protocolo') ?? undefined
   const { data, isLoading } = useQuery({
     queryKey: ['paciente', id],
     queryFn: () => buscarPaciente(id!),
@@ -26,7 +28,7 @@ export default function NovoPlanoPage() {
         <h1 className="text-lg font-semibold text-gray-900">Novo plano de tratamento</h1>
         <p className="text-sm text-gray-500 mt-0.5">{paciente?.nome}</p>
       </div>
-      <FormPlano pacienteId={id!} />
+      <FormPlano pacienteId={id!} protocoloIdInicial={protocoloId} />
     </div>
   )
 }

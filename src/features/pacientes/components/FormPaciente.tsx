@@ -26,7 +26,7 @@ export function FormPaciente() {
     queryKey: ['profissionais'],
     queryFn: listarProfissionais,
   })
-  const fisios = (profissionais ?? []).filter(p => p.papel === 'fisioterapeuta')
+  const fisios = (profissionais ?? []).filter(p => p.papeis?.includes('fisioterapeuta'))
   const fisiosOpts = fisios.map(f => ({ value: f.id, label: f.nome }))
 
   const [form, setForm] = useState({

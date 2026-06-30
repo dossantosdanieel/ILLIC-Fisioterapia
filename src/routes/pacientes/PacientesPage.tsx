@@ -10,7 +10,7 @@ export default function PacientesPage() {
   const [busca, setBusca] = useState('')
 
   const podeAdicionarPaciente =
-    profissional?.papel === 'coordenador' || profissional?.papel === 'admin'
+    profissional?.papeis?.some(p => p === 'coordenador' || p === 'admin')
 
   return (
     <div className="p-6 max-w-4xl mx-auto">

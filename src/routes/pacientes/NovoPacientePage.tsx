@@ -7,7 +7,7 @@ export default function NovoPacientePage() {
   const { profissional } = useAuth()
 
   // Fisioterapeuta não tem acesso — redireciona silenciosamente
-  if (profissional && profissional.papel === 'fisioterapeuta') {
+  if (profissional && profissional.papeis?.includes('fisioterapeuta')) {
     return <Navigate to="/pacientes" replace />
   }
 

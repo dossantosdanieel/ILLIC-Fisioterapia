@@ -38,6 +38,23 @@ export async function listarPlanosDoPaciente(pacienteId: string) {
   return data ?? []
 }
 
+export interface ExercicioSessaoPayload {
+  exercicio_id: string
+  nota: string
+  ordem: number
+  regra_progressao?: string | null
+  series?: number
+  reps?: number | null
+  tempo_seg?: number | null
+  carga_tipo?: string
+  carga_valor?: string
+}
+
+export interface SessaoPayload {
+  nome: string
+  exercicios: ExercicioSessaoPayload[]
+}
+
 export interface CriarPlanoPayload {
   plano: Omit<PlanoInsert, 'fisio_id'>
   fases: {
@@ -47,6 +64,7 @@ export interface CriarPlanoPayload {
     semana_fim: number
     objetivos: string[]
     criterios: { medida_id: string; operador: OperadorCriterio; valor_alvo: number }[]
+    sessoes?: SessaoPayload[]   // templates de sessão — criados em cada microciclo
   }[]
 }
 
@@ -100,8 +118,49 @@ export async function criarPlanoCompleto(fisioId: string, payload: CriarPlanoPay
       ordem++
     }
     if (microciclos.length > 0) {
-      const { error: errM } = await supabase.from('microciclo').insert(microciclos)
+      const { data: microciclosData, error: errM } = await supabase
+        .from('microciclo').insert(microciclos).select('id')
       if (errM) throw errM
+
+      // Cria sessao_template para cada microciclo
+      if (f.sessoes && f.sessoes.length > 0 && microciclosData) {
+        for (const micro of microciclosData) {
+          for (const sessao of f.sessoes) {
+            const { data: st, error: errSt } = await supabase
+              .from('sessao_template')
+              .insert({ microciclo_id: micro.id, nome: sessao.nome })
+              .select('id').single()
+            if (errSt) throw errSt
+
+            if (sessao.exercicios.length > 0) {
+              const { data: bloco, error: errB } = await supabase
+                .from('bloco')
+                .insert({ sessao_template_id: st.id, nome: 'Exercícios', ordem: 1 })
+                .select('id').single()
+              if (errB) throw errB
+
+              const { error: errEx } = await supabase.from('exercicio_prescrito').insert(
+                sessao.exercicios.map(ex => ({
+                  bloco_id: bloco.id,
+                  exercicio_id: ex.exercicio_id,
+                  series: ex.series ?? 3,
+                  reps: ex.reps ?? null,
+                  tempo_seg: ex.tempo_seg ?? null,
+                  carga_tipo: (ex.carga_tipo ?? 'kg') as 'kg',
+                  carga_valor: ex.carga_valor ?? '0',
+                  nota: ex.nota || null,
+                  condicional: false,
+                  ordem: ex.ordem,
+                  regra_progressao: ex.regra_progressao || null,
+                }))
+              )
+              if (errEx) throw errEx
+            }
+          }
+        }
+      }
+    } else {
+      // sem microciclos — não cria sessões
     }
   }
 

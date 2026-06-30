@@ -1,5 +1,37 @@
 import { supabase } from '@/lib/supabase'
 import type { Database, CargaTipo, MotivoNaoRealizado } from '@/types/database'
+import { calcularVolume, classificarGrupo } from '@/lib/carga'
+
+export async function notificarDesviosSessao(payload: {
+  pacienteId: string
+  pacienteNome: string
+  sessaoRealizadaId: string
+  profissionalNome: string
+  desvios: { exercicio: string; tipo: 'nao_realizado' | 'alterado'; motivo?: string }[]
+}): Promise<void> {
+  const { data: coordenadores, error } = await supabase
+    .from('profissional')
+    .select('id')
+    .or('papeis.cs.{coordenador},papeis.cs.{admin}')
+    .eq('ativo', true)
+
+  if (error || !coordenadores?.length) return
+
+  const notificacoes = coordenadores.map(c => ({
+    destinatario_id: c.id,
+    tipo: 'sessao_alterada' as const,
+    lida: false,
+    payload: {
+      paciente_id: payload.pacienteId,
+      paciente_nome: payload.pacienteNome,
+      sessao_realizada_id: payload.sessaoRealizadaId,
+      profissional_nome: payload.profissionalNome,
+      desvios: payload.desvios,
+    },
+  }))
+
+  await supabase.from('notificacao').insert(notificacoes)
+}
 
 type BlocoInsert = Database['public']['Tables']['bloco']['Insert']
 type ExercicioPrescritoInsert = Database['public']['Tables']['exercicio_prescrito']['Insert']
@@ -55,6 +87,7 @@ export interface ExecucaoCompleta {
   realizado: boolean
   carga_real: string | null
   reps_real: number | null
+  tempo_real: number | null
   motivo_nao_realizado: MotivoNaoRealizado | null
   motivo_texto: string | null
   alterado_em_tempo_real: boolean
@@ -97,6 +130,40 @@ export async function atualizarExercicio(id: string, payload: Partial<ExercicioC
 }
 
 // ── Template de sessão ────────────────────────────────────
+
+// Tipos para o resumo inline (FaseDetalhePage)
+export interface ExercicioResumo {
+  id: string
+  series: number
+  reps: number | null
+  tempo_seg: number | null
+  carga_tipo: string
+  carga_valor: string
+  regra_progressao: string | null
+  ordem: number
+  exercicio: { nome: string; grupo_muscular: string | null }
+}
+export interface BlocoResumo { id: string; nome: string; ordem: number; exercicio_prescrito: ExercicioResumo[] }
+export interface SessaoResumo { id: string; nome: string | null; bloco: BlocoResumo[] }
+
+/** Busca todas as sessões de um microciclo com os exercícios (para exibição inline) */
+export async function buscarResumosMicrociclo(microcicloId: string): Promise<SessaoResumo[]> {
+  const { data, error } = await supabase
+    .from('sessao_template')
+    .select(`
+      id, nome,
+      bloco(
+        id, nome, ordem,
+        exercicio_prescrito(
+          id, series, reps, tempo_seg, carga_tipo, carga_valor, regra_progressao, ordem,
+          exercicio(nome, grupo_muscular)
+        )
+      )
+    `)
+    .eq('microciclo_id', microcicloId)
+  if (error) throw error
+  return (data ?? []) as unknown as SessaoResumo[]
+}
 
 export async function buscarSessaoTemplate(templateId: string): Promise<SessaoTemplateCompleta> {
   const { data, error } = await supabase
@@ -277,6 +344,148 @@ export async function registrarSessaoRealizada(payload: RegistrarSessaoPayload) 
   return sessao!
 }
 
+// ── Volume e progressão ───────────────────────────────────
+
+export interface VolumePorGrupo {
+  volume: number
+  unidade: string
+  tipo: 'grande' | 'pequeno'
+}
+
+/**
+ * Retorna o volume total prescrito por grupo muscular do microciclo ANTERIOR
+ * ao microciclo fornecido (mesmo fase, ordem - 1).
+ */
+export async function buscarVolumeMicrocicloAnterior(microcicloId: string): Promise<{
+  volumePorGrupo: Record<string, VolumePorGrupo>
+  ordem: number
+} | null> {
+  const { data: mc } = await supabase
+    .from('microciclo').select('fase_id, ordem').eq('id', microcicloId).single()
+  if (!mc || mc.ordem <= 1) return null
+
+  const { data: prevMc } = await supabase
+    .from('microciclo').select('id, ordem')
+    .eq('fase_id', mc.fase_id).eq('ordem', mc.ordem - 1).maybeSingle()
+  if (!prevMc) return null
+
+  const { data: templates } = await supabase
+    .from('sessao_template')
+    .select('bloco(exercicio_prescrito(series, reps, tempo_seg, carga_tipo, carga_valor, exercicio(grupo_muscular)))')
+    .eq('microciclo_id', prevMc.id)
+
+  const volumePorGrupo: Record<string, VolumePorGrupo> = {}
+  for (const tmpl of templates ?? []) {
+    for (const bloco of (tmpl as any).bloco ?? []) {
+      for (const ep of bloco.exercicio_prescrito ?? []) {
+        const grupo = ep.exercicio?.grupo_muscular ?? 'Geral'
+        const tipo = classificarGrupo(grupo)
+        const vol = calcularVolume(ep.series, ep.reps, ep.tempo_seg, ep.carga_tipo, ep.carga_valor)
+        if (vol) {
+          if (!volumePorGrupo[grupo]) volumePorGrupo[grupo] = { volume: 0, unidade: vol.unidade, tipo }
+          volumePorGrupo[grupo].volume += vol.volume
+        }
+      }
+    }
+  }
+  return { volumePorGrupo, ordem: prevMc.ordem }
+}
+
+export async function notificarProgressaoInsuficiente(payload: {
+  pacienteId: string
+  pacienteNome: string
+  profissionalNome: string
+  sessaoRealizadaId: string
+  alertas: string[]
+}): Promise<void> {
+  const { data: destinatarios } = await supabase
+    .from('profissional').select('id')
+    .or('papeis.cs.{coordenador},papeis.cs.{admin}').eq('ativo', true)
+  if (!destinatarios?.length) return
+
+  await supabase.from('notificacao').insert(
+    destinatarios.map(c => ({
+      destinatario_id: c.id,
+      tipo: 'sessao_alterada' as const,
+      lida: false,
+      payload: {
+        paciente_id: payload.pacienteId,
+        paciente_nome: payload.pacienteNome,
+        sessao_realizada_id: payload.sessaoRealizadaId,
+        profissional_nome: payload.profissionalNome,
+        tipo_alerta: 'progressao_insuficiente',
+        alertas: payload.alertas,
+      },
+    }))
+  )
+}
+
+// ── Última execução por exercício (para sugestão de progressão) ──────────
+
+export interface UltimaExecucao {
+  carga_real: string | null
+  reps_real: number | null
+  tempo_real: number | null
+  data: string
+}
+
+/**
+ * Retorna a execução mais recente (realizado=true) de cada exercício
+ * para este paciente — até 30 sessões anteriores.
+ * Chave do objeto: exercicio_id.
+ */
+export async function buscarUltimaExecucao(
+  pacienteId: string,
+  exercicioIds: string[],
+): Promise<Record<string, UltimaExecucao>> {
+  if (!exercicioIds.length) return {}
+
+  const { data: sessoes } = await supabase
+    .from('sessao_realizada')
+    .select('id, data')
+    .eq('paciente_id', pacienteId)
+    .order('data', { ascending: false })
+    .limit(30)
+
+  if (!sessoes?.length) return {}
+
+  const sessaoIds = sessoes.map(s => s.id)
+  const dateMap = new Map(sessoes.map(s => [s.id, s.data]))
+
+  const { data: execs } = await supabase
+    .from('execucao_exercicio')
+    .select(`
+      sessao_realizada_id,
+      carga_real, reps_real, tempo_real,
+      exercicio_prescrito!inner(exercicio_id)
+    `)
+    .in('sessao_realizada_id', sessaoIds)
+    .eq('realizado', true)
+
+  if (!execs?.length) return {}
+
+  // Ordena por data decrescente e toma o primeiro por exercicio_id
+  const sorted = [...execs].sort((a, b) => {
+    const da = dateMap.get(a.sessao_realizada_id) ?? ''
+    const db = dateMap.get(b.sessao_realizada_id) ?? ''
+    return db.localeCompare(da)
+  })
+
+  const result: Record<string, UltimaExecucao> = {}
+  for (const ex of sorted) {
+    const exercicioId = (ex.exercicio_prescrito as unknown as { exercicio_id: string }).exercicio_id
+    if (exercicioIds.includes(exercicioId) && !result[exercicioId]) {
+      result[exercicioId] = {
+        carga_real: ex.carga_real,
+        reps_real: ex.reps_real,
+        tempo_real: (ex as unknown as { tempo_real: number | null }).tempo_real ?? null,
+        data: dateMap.get(ex.sessao_realizada_id) ?? '',
+      }
+    }
+  }
+  return result
+}
+
 // ── Gerador de texto para Zenfisio ───────────────────────
 
 export function gerarTextoEvolucao(
@@ -317,11 +526,14 @@ export function gerarTextoEvolucao(
       const exec = mapaExecucao.get(ep.id)
       const carga = exec?.carga_real ?? ep.carga_valor
       const reps = exec?.reps_real ?? ep.reps
+      const tempo = exec?.tempo_real ?? ep.tempo_seg
       const prescricao = ep.reps
         ? `${ep.series}×${reps} rep — ${carga} ${ep.carga_tipo}`
-        : `${ep.series}×${ep.tempo_seg}s — ${carga} ${ep.carga_tipo}`
-      const alterado = exec?.alterado_em_tempo_real ? ' *(ajuste em tempo real)*' : ''
-      texto += `✓ ${ep.exercicio.nome}: ${prescricao}${alterado}\n`
+        : `${ep.series}×${tempo}s — ${carga} ${ep.carga_tipo}`
+      const justificativa = exec?.alterado_em_tempo_real && exec?.motivo_texto
+        ? ` | Justificativa: ${exec.motivo_texto}`
+        : exec?.alterado_em_tempo_real ? ' *(ajuste em tempo real)*' : ''
+      texto += `✓ ${ep.exercicio.nome}: ${prescricao}${justificativa}\n`
       if (ep.nota) texto += `   Obs: ${ep.nota}\n`
     }
 

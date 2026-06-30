@@ -42,7 +42,7 @@ export default function PacienteDetalhePage() {
   const p = pacienteRaw as PacienteDetalhe
   const planoAtivo = planos?.find(pl => pl.status === 'ativo') ?? planos?.[0]
   const podeGerenciarPlano =
-    profissional?.papel === 'coordenador' || profissional?.papel === 'admin'
+    profissional?.papeis?.some(p => p === 'coordenador' || p === 'admin')
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'plano', label: 'Plano de tratamento' },

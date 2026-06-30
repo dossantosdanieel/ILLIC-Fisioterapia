@@ -3,15 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/lib/AuthContext'
 import { signOut } from '@/lib/auth'
 import { listarNotificacoes } from '@/features/coordenacao/api'
-import { Users, ClipboardList, BarChart2, Bell, LogOut, Settings } from 'lucide-react'
+import { Users, ClipboardList, BarChart2, Bell, LogOut, Settings, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 export default function Layout() {
   const { profissional } = useAuth()
   const navigate = useNavigate()
 
-  const isCoord = profissional?.papel === 'coordenador' || profissional?.papel === 'admin'
-  const isAdmin = profissional?.papel === 'admin'
+  const isCoord = profissional?.papeis?.some(p => p === 'coordenador' || p === 'admin') ?? false
+  const isAdmin = profissional?.papeis?.includes('admin') ?? false
 
   const { data: notifs } = useQuery({
     queryKey: ['notificacoes', profissional?.id],
@@ -29,6 +29,7 @@ export default function Layout() {
   const nav = [
     { to: '/pacientes', label: 'Pacientes', icon: Users },
     { to: '/sessoes', label: 'Exercícios', icon: ClipboardList },
+    { to: '/protocolos', label: 'Protocolos', icon: BookOpen },
     ...(isCoord ? [{ to: '/coordenacao', label: 'Coordenação', icon: Bell, badge: naolidas }] : []),
     ...(isCoord ? [{ to: '/performance', label: 'Performance', icon: BarChart2 }] : []),
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: Settings }] : []),
@@ -37,9 +38,9 @@ export default function Layout() {
   return (
     <div className="flex h-screen bg-gray-50">
       <aside className="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0">
-        <div className="px-4 py-5 border-b border-gray-200">
-          <span className="font-semibold text-gray-900 text-base">ILLIC</span>
-          <p className="text-xs text-gray-500 mt-0.5">Reabilitação</p>
+        <div className="px-4 py-4 border-b border-gray-200">
+          <img src="/logo.svg" alt="ILLIC" className="h-6 w-auto mb-1" />
+          <p className="text-xs text-gray-500">Reabilitação</p>
         </div>
 
         <nav className="flex-1 px-2 py-4 space-y-0.5">
@@ -70,7 +71,7 @@ export default function Layout() {
         <div className="px-4 py-4 border-t border-gray-200">
           <div className="mb-3">
             <p className="text-xs font-medium text-gray-900 truncate">{profissional?.nome}</p>
-            <p className="text-xs text-gray-500 capitalize">{profissional?.papel}</p>
+            <p className="text-xs text-gray-500 capitalize">{profissional?.papeis?.join(', ')}</p>
           </div>
           <button onClick={handleLogout}
             className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-900 transition-colors">

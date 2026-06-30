@@ -1,0 +1,15 @@
+<svg viewBox="0 0 310 120" xmlns="http://www.w3.org/2000/svg" fill="black">
+  <!-- i -->
+  <rect x="0" y="0" width="38" height="38" rx="5"/>
+  <rect x="0" y="48" width="38" height="72" rx="5"/>
+  <!-- l -->
+  <rect x="48" y="0" width="38" height="120" rx="5"/>
+  <!-- l -->
+  <rect x="96" y="0" width="38" height="120" rx="5"/>
+  <!-- i -->
+  <rect x="144" y="0" width="38" height="38" rx="5"/>
+  <rect x="144" y="48" width="38" height="72" rx="5"/>
+  <!-- c  (center 252,60  path-r=41  stroke=38  outer-r=60) -->
+  <path d="M 275.5 26.4 A 41 41 0 1 0 275.5 93.6"
+        fill="none" stroke="black" stroke-width="38" stroke-linecap="round"/>
+</svg>
